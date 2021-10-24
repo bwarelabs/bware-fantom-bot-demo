@@ -1,0 +1,14 @@
+{
+  "name": "bware-fantom-bot-demo",
+  "version": "1.0.0",
+  "dependencies": {
+    "@uniswap/sdk": "^3.0.3",
+    "ethers": "^5.5.1"
+  },
+  "devDependencies": {
+    "axios": "^0.23.0",
+    "bignumber.js": "^9.0.1",
+    "web3": "^1.6.0",
+    "winston": "^3.3.3"
+  }
+}
