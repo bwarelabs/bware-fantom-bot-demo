@@ -16,13 +16,13 @@ module.exports = {
         ethers_provider = new ethers.providers.WebSocketProvider(this.cfg.ethEndpoint,);
 
         this.chainID = await web3_provider.eth.getChainId();
-        logger.info(`Trading on the Fantom Opera blockchain of chain ID ${this.chainID}`);
+        logger.info(`Trading on the Fantom Opera of network chain ID ${this.chainID}`);
     },
 
     start_Bot: async function () {
         this.stopSwapper = false;
         web3_provider.eth.accounts.wallet.add(this.cfg.PK);
-        this.walletAddress = web3_provider.eth.accounts.privateKeyToAccount(this.cfg.PK)['address'];
+        this.accountAddress = web3_provider.eth.accounts.privateKeyToAccount(this.cfg.PK)['address'];
 
         if (!web3_provider.utils.isAddress(this.cfg.tokenAddress)) {
             logger.error(`The provided token address ${this.cfg.tokenAddress} is not valid`);
@@ -37,9 +37,9 @@ module.exports = {
         this.tokenContract = new web3_provider.eth.Contract(tools.tokenABI, this.cfg.tokenAddress);
         this.botContract = new web3_provider.eth.Contract(tools.contractBotABI, this.cfg.botContractAddress);
 
-        await this.botContract.methods.isSwapper(this.walletAddress).call().then(async (success) => {
+        await this.botContract.methods.isSwapper(this.accountAddress).call().then(async (success) => {
             if (!success) {
-                logger.error(`Current wallet ${this.walletAddress} is not a swapper of the bot contract`);
+                logger.error(`Current wallet ${this.accountAddress} is not a swapper of the bot contract`);
                 process.exit(1);
             }
         });
@@ -51,7 +51,7 @@ module.exports = {
     },
 
     listen_liquidity: async function () {
-        logger.info(`Listening on liquidity on token ${this.cfg.tokenAddress} to trade ${this.cfg.etherToSell} FTM using swapper ${this.walletAddress}`);
+        logger.info(`Listening on liquidity on token ${this.cfg.tokenAddress} to trade ${this.cfg.etherToSell} FTM using swapper ${this.accountAddress}`);
         const routerAddress = this.cfg.routerV2Address.toLowerCase();
         const signatureHash = '0xf305d719'; // of the method addLiquidityETH
 
@@ -62,7 +62,7 @@ module.exports = {
             return parseInt(decimals.toString());
         });
 
-        this.subscription = web3_provider.eth.subscribe('pendingTransactions', function (error, result) {
+        web3_provider.eth.subscribe('pendingTransactions', function (error, result) {
             if (error) {
                 logger.error(error);
             }
@@ -85,7 +85,7 @@ module.exports = {
                         if (tx.gasPrice) {
                             this.gasPrice = tx.gasPrice;
                             logger.info(`Would buy tokens worth of ${this.cfg.etherToSell} FTM using gas price of ${Web3.utils.fromWei(this.gasPrice, 'gwei')} gwei for the buy transaction:`);
-                            logger.info(`Buying tokens with supplied ETH...`);
+                            logger.info(`Buying tokens using the FTM supply...`);
                             await this.buyTokens();
                         }
                     }
@@ -96,7 +96,7 @@ module.exports = {
 
     buyTokens: async function () {
         await this.botContract.methods.buy().send({
-            from: this.walletAddress,
+            from: this.accountAddress,
             gasPrice: this.gasPrice,
             gas: this.cfg.gasLimitDefault
         }).on('transactionHash', async function (buy_tx_hash) {
@@ -104,11 +104,6 @@ module.exports = {
         }).on('receipt', async (receipt) => {
             this.tokensToSell = new BigNumber(receipt.events.TokensAmount['raw']['data']);
             logger.info(`The buy transaction has been mined on block ${receipt.blockNumber} and bought ${this.tokensToSell.toFixed()} tokens`);
-            await this.subscription.unsubscribe(async (error, success) => {
-                if (success) {
-                    logger.info(`Successfully unsubscribed from the pending tx poll`);
-                }
-            });
             await this.waitOnPrice();
         }).on('error', async (error) => {
             logger.warn(`The buy transaction has failed with error ${error}`);
@@ -159,19 +154,19 @@ module.exports = {
             process.exit();
         }
         await this.botContract.methods.sell().send({
-            from: this.walletAddress,
+            from: this.accountAddress,
             gasPrice: this.fastGasPrice,
             gas: this.cfg.gasLimitDefault
         }).on('transactionHash', async function (tx_hash) {
-            logger.info(`The SELL transaction has been broadcast to the blockchain with hash: ${tx_hash}`);
+            logger.info(`The sell transaction has been broadcast to the blockchain with hash: ${tx_hash}`);
         }).on('error', async (error) => {
             logger.error(error);
-            logger.error(`The SELL transaction failed, need to transfer tokens back to owner`);
+            logger.error(`The sell transaction failed, need to transfer tokens back to owner`);
             this.stopSwapper = true;
 
             this.fastGasPrice = new BigNumber(this.fastGasPrice).plus(new BigNumber(1).shiftedBy(9)); // don't trigger replacement tx underpriced
             await this.botContract.methods.withdrawToken().send({
-                from: this.walletAddress,
+                from: this.accountAddress,
                 gasPrice: this.fastGasPrice,
                 gas: this.cfg.gasLimitDefault
             }).on('receipt', async (receipt) => {
@@ -183,10 +178,10 @@ module.exports = {
             });
 
         }).on('receipt', async (receipt) => {
-            logger.info(`The SELL transaction has been successful`);
+            logger.info(`The sell transaction has been successful`);
             this.stopSwapper = true; // basically stop the subscription to new blocks
             const ethBought = new BigNumber(receipt.events.EtherAmount.returnValues.amount).shiftedBy(-1 * this.etherDecimals).toFixed(6);
-            logger.info(`Successfully bought ${ethBought} ETH`);
+            logger.info(`Successfully sold all tokens for ${ethBought} FTM`);
             process.exit(0);
         });
     },
