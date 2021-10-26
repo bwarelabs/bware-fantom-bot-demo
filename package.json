@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "dependencies": {
     "@uniswap/sdk": "^3.0.3",
-    "ethers": "^5.5.1"
+    "ethers": "^5.5.1",
+    "minimist": "^1.2.5"
   },
   "devDependencies": {
     "@ac32/spookyswap-sdk": "^1.0.0",

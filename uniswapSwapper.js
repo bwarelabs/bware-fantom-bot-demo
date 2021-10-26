@@ -12,8 +12,8 @@ let ethers_provider = undefined;
 module.exports = {
     init: async function (Scenario) {
         this.cfg = Scenario;
-        web3_provider = new Web3(new Web3.providers.WebsocketProvider(this.cfg.ethEndpoint));
-        ethers_provider = new ethers.providers.WebSocketProvider(this.cfg.ethEndpoint,);
+        web3_provider = new Web3(new Web3.providers.WebsocketProvider(this.cfg.endpoint));
+        ethers_provider = new ethers.providers.WebSocketProvider(this.cfg.endpoint,);
 
         this.chainID = await web3_provider.eth.getChainId();
         logger.info(`Trading on the Fantom Opera of network chain ID ${this.chainID}`);
@@ -35,7 +35,7 @@ module.exports = {
         });
         this.WETHContract = new web3_provider.eth.Contract(tools.tokenABI, this.wethAddress);
         this.tokenContract = new web3_provider.eth.Contract(tools.tokenABI, this.cfg.tokenAddress);
-        this.botContract = new web3_provider.eth.Contract(tools.contractBotABI, this.cfg.botContractAddress);
+        this.botContract = new web3_provider.eth.Contract(tools.contractBotABI, this.cfg.botAddress);
 
         await this.botContract.methods.isSwapper(this.accountAddress).call().then(async (success) => {
             if (!success) {
@@ -44,7 +44,7 @@ module.exports = {
             }
         });
 
-        await web3_provider.eth.getBalance(this.cfg.botContractAddress).then((wei_balance) => {
+        await web3_provider.eth.getBalance(this.cfg.botAddress).then((wei_balance) => {
             this.cfg.etherToSell = parseFloat(new BigNumber(web3_provider.utils.fromWei(wei_balance, 'ether')).toFixed(6));
         });
         await this.listen_liquidity();
@@ -115,8 +115,8 @@ module.exports = {
         logger.info(`Start searching for optimal block to sell the tokens...`);
         let seenBlocks = new Set(); // solve the problem of headers subscription firing twice for same block
         let token = new Token(this.chainID, this.cfg.tokenAddress, this.tokenDecimals);
-        let lowerBound = (this.cfg.lossTrigger / 100) * this.cfg.etherToSell;
-        let upperBound = (this.cfg.profitTarget / 100) * this.cfg.etherToSell;
+        let lowerBound = (this.cfg.targetLoss / 100) * this.cfg.etherToSell;
+        let upperBound = (this.cfg.targetProfit / 100) * this.cfg.etherToSell;
 
         await this.checkBounds(token, lowerBound, upperBound).then(async () => {
             web3_provider.eth.subscribe('newBlockHeaders', async (error, result) => {
@@ -146,7 +146,7 @@ module.exports = {
 
     sellTokens: async function () {
         try {
-            this.fastGasPrice = await web3_provider.eth.getGasPrice().then(async (gasPrice) => {
+            this.fastGasPrice = await web3_provider.eth.getGasPrice().then((gasPrice) => {
                 return new BigNumber(gasPrice).multipliedBy(this.cfg.gasPriceIncrease).toFixed(0);
             });
             logger.info(`Use the web3 computed gas price for the sell transaction: ${Web3.utils.fromWei(this.fastGasPrice, 'gwei')} gwei`);
