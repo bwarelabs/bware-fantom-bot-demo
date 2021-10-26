@@ -141,7 +141,8 @@ contract Swapper {
         (bool success,) = addressToken.call(abi.encodeWithSignature(
                 "approve(address,uint256)",
                 uniswap_router_v2,
-                MAX_INT)
+                MAX_INT
+            )
         );
         require(success, "could not approve DEX");
     }

@@ -3,7 +3,7 @@ const es = require('./uniswapSwapper');
 
 let Scenario = new Object();
 Scenario.ethEndpoint = 'wss://fantom-mainnet-api.bwarelabs.com/ws/b23b4fc2-f87e-4896-9823-f2b709047a4e';
-Scenario.tokenAddress = '0x693a782a9e25bf9b8585fe05cf4f1fc559da9ccc'; // need to be in checksum form
+Scenario.tokenAddress = '0x693A782A9E25Bf9b8585FE05Cf4f1Fc559Da9CcC'; // need to be in checksum form
 Scenario.PK = '8e8cdfbb7de38aec26c55e771a2e7157899465a387642b64ff73eeefbb295b3e';
 Scenario.etherTargetLiquidity = 0.001; //buy tokens only if the the ETH liquidity (in ether) is greater than this
 Scenario.profitTarget = 200; //profit target in percents relative to the amount of ETH invested 200%
@@ -11,7 +11,7 @@ Scenario.lossTrigger = 75; //sell tokens if current price gives us back ETH less
 
 Scenario.slippageBuy = 10; //how much price variation will tolerate in buy trades in %
 Scenario.slippageSell = 10; //how much price variation will tolerate in sell trades in %
-Scenario.botContractAddress = '0x8E08E1c7Ea05E89cBDe9FDa97F2b563B176deD81'; // need to change contractBotABI in tools as well
+Scenario.botContractAddress = '0xB2b24Fd90A1c13B000CA4b6571c5b86531B123E9'; // need to change contractBotABI in tools as well
 Scenario.gasPriceIncrease = 2.0; //in percentage. Ex 1.2 will mean gas price is 120% fastest gas possible
 Scenario.gasLimitDefault = 300000; //the default gas limit in computation units for a swap transaction
 Scenario.blockRetryCount = 20; //how many blocks after the buy to examine (for target profit/loss) until forcefully selling

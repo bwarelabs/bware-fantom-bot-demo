@@ -6,6 +6,7 @@
     "ethers": "^5.5.1"
   },
   "devDependencies": {
+    "@ac32/spookyswap-sdk": "^1.0.0",
     "axios": "^0.23.0",
     "bignumber.js": "^9.0.1",
     "web3": "^1.6.0",
