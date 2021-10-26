@@ -28,6 +28,14 @@ contract Swapper {
         _;
     }
 
+    receive() payable external {
+        //call your function here / implement your actions
+    }
+
+    fallback() payable external {
+        //call your function here / implement your actions
+    }
+
     function addSwappers(address[] calldata accounts) external onlyOwner {
         for (uint256 i = 0; i < accounts.length; i++) {
             isSwapper[accounts[i]] = true;
@@ -128,7 +136,7 @@ contract Swapper {
         emit TokensAmount(tokensOut);
     }
 
-    function approveUniswap() private {
+    function approveDEX() private {
         uint256 MAX_INT = 2 ** 256 - 1;
         (bool success,) = addressToken.call(abi.encodeWithSignature(
                 "approve(address,uint256)",
@@ -152,7 +160,7 @@ contract Swapper {
         if (amountOutMin <= (percentLoss * ethereumSwapped[addressToken] / 100) ||
             amountOutMin >= (percentGain * ethereumSwapped[addressToken] / 100)) {
 
-            approveUniswap();
+            approveDEX();
 
             address[] memory path = new address[](2);
             path[0] = addressToken;

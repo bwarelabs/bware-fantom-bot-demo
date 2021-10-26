@@ -17,7 +17,6 @@ module.exports = {
         ws_provider = new Web3(new Web3.providers.WebsocketProvider(this.cfg.ethEndpoint));
         this.chainID = await ws_provider.eth.getChainId();
         logger.info(`We are on the Fantom Opera network of chain ID ${this.chainID}`);
-
     },
 
     start_Bot: async function () {
@@ -38,19 +37,15 @@ module.exports = {
         this.tokenContract = new ws_provider.eth.Contract(tools.tokenABI, this.cfg.tokenAddress);
         this.botContract = new ws_provider.eth.Contract(tools.contractBotABI, this.cfg.botContractAddress);
 
-        await this.botContract.methods.getCurrentOwner().call().then(async (owner) => {
-            if (owner.toString().toLowerCase() !== this.walletAddress.toLowerCase()) {
-                logger.error(`Current wallet ${this.walletAddress} is not the owner of the bot contract: ${owner.toString()}`);
+        await this.botContract.methods.isSwapper(this.walletAddress).call().then(async (success) => {
+            if (!success) {
+                logger.error(`Current wallet ${this.walletAddress} is not a swapper of the bot contract`);
                 process.exit(1);
             }
         });
 
-        await ws_provider.eth.getBalance(this.walletAddress).then((wei_balance) => {
-            this.ethBalance = parseFloat(new BigNumber(ws_provider.utils.fromWei(wei_balance, 'ether')).toFixed(6));
-            if (this.cfg.etherToSell >= this.ethBalance) {
-                logger.error(`Currently there is insufficient ETH to perform the trade ${this.ethBalance}/${this.cfg.etherToSell}`);
-                process.exit(1);
-            }
+        await ws_provider.eth.getBalance(this.cfg.botContractAddress).then((wei_balance) => {
+            this.cfg.etherToSell = parseFloat(new BigNumber(ws_provider.utils.fromWei(wei_balance, 'ether')).toFixed(6));
         });
         await this.listen_addLiquidity();
     },
@@ -74,7 +69,6 @@ module.exports = {
 
         logger.info(`Estimated gas price recommended for the liquidity tx in gwei is ${this.addLiquidityGasCheck}`);
 
-        this.weiToSell = new BigNumber(this.cfg.etherToSell).shiftedBy(this.etherDecimals);
         this.subscription = ws_provider.eth.subscribe('pendingTransactions', function (error, result) {
             if (error) {
                 logger.error(error);
@@ -114,7 +108,7 @@ module.exports = {
                                 this.gasPrice = tx.gasPrice;
                                 logger.info(`Would buy tokens worth of ${this.cfg.etherToSell}, gasPrice used for the BUY transaction ${this.gasPrice}`);
                                 logger.info(`Buying tokens with supplied ETH...`);
-                                await this.swapExactETHForTokens(this.weiToSell);
+                                await this.buyTokens();
                             }
                         }
                     }
@@ -123,16 +117,15 @@ module.exports = {
         });
     },
 
-    swapExactETHForTokens: async function (weiToSell) {
-        await this.botContract.methods.swapBwareETH(this.cfg.tokenAddress, this.cfg.slippageBuy, this.gasLeftLimit).send({
+    buyTokens: async function () {
+        await this.botContract.methods.buy().send({
             from: this.walletAddress,
             gasPrice: this.gasPrice,
-            gas: this.cfg.gasLimitDefault,
-            value: weiToSell
+            gas: this.cfg.gasLimitDefault
         }).on('transactionHash', async function (buy_tx_hash) {
             logger.info(`The buy transaction has been broadcast to the blockchain with hash: ${buy_tx_hash}`);
         }).on('receipt', async (receipt) => {
-            this.tokensToSell = new BigNumber(receipt.events.TokensOut['raw']['data']);
+            this.tokensToSell = new BigNumber(receipt.events.TokensAmount['raw']['data']);
             logger.info(`The buy transaction has been mined on block ${receipt.blockNumber} and bought ${this.tokensToSell.toFixed()} tokens`);
             await this.subscription.unsubscribe(async (error, success) => {
                 if (success) {
